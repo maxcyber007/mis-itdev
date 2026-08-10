@@ -34,3 +34,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# ข้อมูลระบบ MIS (สร้างอัตโนมัติเมื่อรันครั้งแรก)
+/data

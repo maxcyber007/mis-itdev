@@ -1,36 +1,84 @@
-This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# ระบบ MIS แผนกวิชาเทคโนโลยีสารสนเทศ วิทยาลัยเทคนิคเชียงใหม่
 
-## Getting Started
+ระบบสารสนเทศเพื่อการจัดการ (MIS) สำหรับงานพัสดุและงานการเงินของแผนกวิชา
+พัฒนาด้วย Next.js 14 (App Router) + Bootstrap 5
 
-First, run the development server:
+## ความสามารถของระบบ
+
+1. **เข้าสู่ระบบ (Login)** — ยืนยันตัวตนด้วยชื่อผู้ใช้/รหัสผ่าน เก็บ session เป็นคุกกี้ `HttpOnly` ที่ลงลายเซ็น HMAC อายุ 8 ชั่วโมง รหัสผ่านเก็บแบบ `scrypt` + salt
+2. **แดชบอร์ด** — สรุปคำขอรออนุมัติ รายการยืมที่ยังไม่คืน/เกินกำหนด ยอดเงินจ่ายสะสม เงินยืมค้างล้างหนี้ พัสดุคงเหลือน้อย และรายการล่าสุด (ผู้ใช้ทั่วไปเห็นเฉพาะข้อมูลของตนเอง)
+3. **จัดการผู้ใช้ 3 ระดับสิทธิ์**
+   - `admin` ผู้ดูแลระบบ — จัดการผู้ใช้ทั้งหมด และทำได้ทุกอย่างที่เจ้าหน้าที่ทำได้
+   - `staff` เจ้าหน้าที่ — อนุมัติ/ไม่อนุมัติคำขอ รับคืนพัสดุ จ่ายเงิน ล้างหนี้ และจัดการคลังพัสดุ
+   - `user` ผู้ใช้ทั่วไป — ยื่นคำขอและดูสถานะเฉพาะคำขอของตนเอง
+4. **งานพัสดุ** — ทะเบียนพัสดุ/ครุภัณฑ์พร้อมจำนวนคงเหลือ, คำขอ**เบิก** (ตัดสต๊อกเมื่ออนุมัติ) และคำขอ**ยืม-คืน** (ตัดสต๊อกเมื่ออนุมัติ คืนสต๊อกเมื่อรับคืน) พร้อมแจ้งเตือนรายการเกินกำหนดคืน
+5. **งานการเงิน** — คำขอ**เบิกจ่าย** (รออนุมัติ → อนุมัติ → จ่ายเงิน) และ**ยืมเงินทดรอง** (เพิ่มขั้นล้างหนี้พร้อมบันทึกยอดใช้จริง) พร้อมสรุปยอดเงินและรายการเกินกำหนดล้างหนี้
+
+## การติดตั้งและใช้งาน
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+npm run dev      # โหมดพัฒนา http://localhost:3000
+npm run build && npm run start   # โหมดใช้งานจริง
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+เปิดเบราว์เซอร์ที่ http://localhost:3000 ระบบจะพาไปหน้าเข้าสู่ระบบ
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+### บัญชีตัวอย่าง (สร้างอัตโนมัติเมื่อรันครั้งแรก)
 
-This project uses [`next/font`](https://nextjs.org/docs/basic-features/font-optimization) to automatically optimize and load Inter, a custom Google Font.
+| ชื่อผู้ใช้ | รหัสผ่าน | สิทธิ์ |
+| --- | --- | --- |
+| `admin` | `admin1234` | ผู้ดูแลระบบ |
+| `staff` | `staff1234` | เจ้าหน้าที่ |
+| `user` | `user1234` | ผู้ใช้ทั่วไป |
 
-## Learn More
+> ก่อนนำไปใช้งานจริง ให้เปลี่ยนรหัสผ่านของบัญชีตัวอย่างทั้งหมด และตั้งค่า
+> `AUTH_SECRET` ในไฟล์ `.env.local` เป็นค่าสุ่มที่ยาวพอ เช่น
+> `AUTH_SECRET=$(openssl rand -hex 32)`
 
-To learn more about Next.js, take a look at the following resources:
+## ฐานข้อมูล
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+เวอร์ชันนี้เก็บข้อมูลเป็นไฟล์ JSON ที่ `data/db.json` (สร้างและใส่ข้อมูลตั้งต้นอัตโนมัติเมื่อรันครั้งแรก)
+เพื่อให้รันได้ทันทีโดยไม่ต้องติดตั้งฐานข้อมูล ไฟล์ในโฟลเดอร์ `data/` ไม่ถูกเก็บลง git
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js/) - your feedback and contributions are welcome!
+ชั้นเข้าถึงข้อมูลทั้งหมดอยู่ในไฟล์เดียวคือ `src/lib/store.js` หากต้องการย้ายไปใช้
+MySQL/MariaDB ของ AppServ ให้แก้เฉพาะไฟล์นี้โดยคงรูปแบบฟังก์ชัน `read()` / `update()` ไว้
 
-## Deploy on Vercel
+## โครงสร้างโปรเจกต์
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```
+src/
+├── app/
+│   ├── login/page.js                  หน้าเข้าสู่ระบบ
+│   ├── dashboard/
+│   │   ├── layout.js                  โครงหน้าหลังเข้าสู่ระบบ (ตรวจสิทธิ์ฝั่งเซิร์ฟเวอร์)
+│   │   ├── page.js                    แดชบอร์ด
+│   │   ├── users/page.js              จัดการผู้ใช้ (เฉพาะผู้ดูแลระบบ)
+│   │   ├── supplies/page.js           งานพัสดุ: คำขอเบิก/ยืม และคลังพัสดุ
+│   │   └── finance/page.js            งานการเงิน: เบิกจ่าย/ยืมเงิน
+│   └── api/                           Route Handlers (auth, users, supplies, finance, dashboard)
+├── components/                        Shell (เมนู), Modal, StatCard, StatusBadge
+├── lib/
+│   ├── auth.js                        เข้ารหัสรหัสผ่านและ session token
+│   ├── session.js                     อ่าน session และตรวจสิทธิ์ของ API
+│   ├── store.js                       ชั้นเข้าถึงข้อมูล
+│   ├── labels.js                      ป้ายกำกับภาษาไทยและการจัดรูปแบบ
+│   └── constants.js                   ค่าคงที่ที่ใช้ได้ใน Edge middleware
+└── middleware.js                      กันการเข้าถึง /dashboard เมื่อยังไม่เข้าสู่ระบบ
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/deployment) for more details.
+## สรุป API
+
+| Method | Endpoint | สิทธิ์ |
+| --- | --- | --- |
+| POST | `/api/auth/login` `/api/auth/logout` | ทุกคน |
+| GET | `/api/auth/me` | ผู้เข้าสู่ระบบ |
+| GET | `/api/dashboard` | ผู้เข้าสู่ระบบ (ผู้ใช้ทั่วไปเห็นเฉพาะของตน) |
+| GET / POST | `/api/users` | admin |
+| PATCH / DELETE | `/api/users/[id]` | admin |
+| GET | `/api/supplies/items` | ผู้เข้าสู่ระบบ |
+| POST | `/api/supplies/items` · PATCH / DELETE `/api/supplies/items/[id]` | admin, staff |
+| GET / POST | `/api/supplies/requests` | ผู้เข้าสู่ระบบ |
+| PATCH | `/api/supplies/requests/[id]` | `approve`/`reject`/`return`: admin, staff · `cancel`: เจ้าของคำขอ |
+| GET / POST | `/api/finance/requests` | ผู้เข้าสู่ระบบ |
+| PATCH | `/api/finance/requests/[id]` | `approve`/`reject`/`pay`/`settle`: admin, staff · `cancel`: เจ้าของคำขอ |
