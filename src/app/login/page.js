@@ -13,12 +13,6 @@ import {
   IconWarning,
 } from "@/components/Icons";
 
-const DEMO_ACCOUNTS = [
-  { role: "ผู้ดูแลระบบ", username: "admin", password: "admin1234" },
-  { role: "เจ้าหน้าที่", username: "staff", password: "staff1234" },
-  { role: "ผู้ใช้ทั่วไป", username: "user", password: "user1234" },
-];
-
 const FEATURES = [
   {
     icon: IconPackage,
@@ -64,12 +58,6 @@ function LoginForm() {
       setError("เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ กรุณาลองใหม่อีกครั้ง");
       setLoading(false);
     }
-  }
-
-  function fillDemo(account) {
-    setUsername(account.username);
-    setPassword(account.password);
-    setError("");
   }
 
   return (
@@ -155,29 +143,6 @@ function LoginForm() {
             {loading ? "กำลังเข้าสู่ระบบ..." : "เข้าสู่ระบบ"}
           </button>
         </form>
-
-        <div className="mt-7 border-t border-ink-100 pt-5">
-          <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-ink-400">
-            บัญชีตัวอย่าง (คลิกเพื่อกรอกอัตโนมัติ)
-          </p>
-          <div className="grid grid-cols-3 gap-2">
-            {DEMO_ACCOUNTS.map((account) => (
-              <button
-                key={account.username}
-                type="button"
-                onClick={() => fillDemo(account)}
-                className="rounded-xl border border-ink-200 px-2 py-2.5 text-center transition duration-200 hover:-translate-y-0.5 hover:border-brand-300 hover:bg-brand-50 hover:shadow-soft"
-              >
-                <span className="block text-xs font-medium text-ink-700">
-                  {account.role}
-                </span>
-                <span className="mt-0.5 block text-[0.7rem] text-ink-400">
-                  {account.username}
-                </span>
-              </button>
-            ))}
-          </div>
-        </div>
       </div>
 
       <p className="mt-6 text-center text-xs text-ink-400">
