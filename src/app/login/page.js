@@ -169,9 +169,6 @@ export default function LoginPage() {
           <div className="max-w-md">
             <h1 className="animate-fade-up text-balance text-4xl font-bold leading-tight text-white stagger-1 xl:text-[2.75rem]">
               ระบบสารสนเทศเพื่อการจัดการ
-              <span className="mt-2 block bg-gradient-to-r from-brand-200 to-sky-200 bg-clip-text text-transparent">
-                งานพัสดุและงานการเงิน
-              </span>
             </h1>
             <p className="mt-5 animate-fade-up text-white/60 stagger-2">
               แผนกวิชาเทคโนโลยีสารสนเทศ วิทยาลัยเทคนิคเชียงใหม่
