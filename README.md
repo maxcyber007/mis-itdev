@@ -107,7 +107,7 @@ FLUSH PRIVILEGES;
 
    | ตัวแปร | ตัวอย่าง |
    | --- | --- |
-   | `MIS_NETWORK` | ชื่อเครือข่ายจากขั้นตอนที่ 1 เช่น `mysql_default` |
+   | `MIS_NETWORK` | ชื่อเครือข่ายจากขั้นตอนที่ 1 เช่น `docker_default` |
    | `DB_HOST` | ชื่อ container ของ MySQL เช่น `mysql` |
    | `DB_USER` / `DB_PASSWORD` / `DB_NAME` | ตามที่สร้างไว้ |
    | `AUTH_SECRET` | ผลลัพธ์จาก `openssl rand -hex 32` |

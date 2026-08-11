@@ -6,25 +6,10 @@ import {
   IconEye,
   IconEyeOff,
   IconLock,
-  IconPackage,
   IconSpinner,
   IconUser,
-  IconWallet,
   IconWarning,
 } from "@/components/Icons";
-
-const FEATURES = [
-  {
-    icon: IconPackage,
-    title: "งานพัสดุ",
-    text: "เบิกจ่ายวัสดุ ยืม-คืนครุภัณฑ์ พร้อมตัดสต๊อกอัตโนมัติ",
-  },
-  {
-    icon: IconWallet,
-    title: "งานการเงิน",
-    text: "เบิกจ่ายเงิน และยืมเงินทดรองพร้อมขั้นตอนล้างหนี้",
-  },
-];
 
 function LoginForm() {
   const router = useRouter();
@@ -191,25 +176,6 @@ export default function LoginPage() {
             <p className="mt-5 animate-fade-up text-white/60 stagger-2">
               แผนกวิชาเทคโนโลยีสารสนเทศ วิทยาลัยเทคนิคเชียงใหม่
             </p>
-
-            <div className="mt-10 space-y-4">
-              {FEATURES.map((feature, index) => (
-                <div
-                  key={feature.title}
-                  className={`flex animate-fade-up items-start gap-4 rounded-2xl border border-white/10 bg-white/[0.04] p-4 backdrop-blur-sm transition duration-300 hover:border-white/20 hover:bg-white/[0.08] ${
-                    index === 0 ? "stagger-3" : "stagger-4"
-                  }`}
-                >
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/10 text-brand-200">
-                    <feature.icon className="h-5 w-5" />
-                  </span>
-                  <div>
-                    <p className="font-medium text-white">{feature.title}</p>
-                    <p className="mt-0.5 text-sm text-white/50">{feature.text}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
           </div>
 
           <p className="animate-fade-up text-xs text-white/35 stagger-5">

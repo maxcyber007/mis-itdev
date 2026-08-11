@@ -65,7 +65,7 @@ services:
 networks:
   # เครือข่ายเดียวกับ MySQL container ที่มีอยู่แล้ว
   # ตรวจชื่อเครือข่ายจริงได้ด้วย:  docker inspect <ชื่อ container ของ mysql> -f '{{json .NetworkSettings.Networks}}'
-  # แล้วตั้งค่า MIS_NETWORK ให้ตรงกัน (ค่าเริ่มต้นคือ mysql_default)
+  # แล้วตั้งค่า MIS_NETWORK ให้ตรงกัน (ค่าเริ่มต้นคือ docker_default)
   mis-net:
     external: true
-    name: ${MIS_NETWORK:-mysql_default}
+    name: ${MIS_NETWORK:-docker_default}
