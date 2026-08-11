@@ -33,13 +33,23 @@ export const STATUS_LABELS = {
 };
 
 export const STATUS_CLASSES = {
-  pending: "text-bg-warning",
-  approved: "text-bg-primary",
-  rejected: "text-bg-danger",
-  returned: "text-bg-success",
-  cancelled: "text-bg-secondary",
-  paid: "text-bg-info",
-  settled: "text-bg-success",
+  pending: "bg-amber-50 text-amber-700 ring-amber-600/20",
+  approved: "bg-brand-50 text-brand-700 ring-brand-600/20",
+  rejected: "bg-rose-50 text-rose-700 ring-rose-600/20",
+  returned: "bg-emerald-50 text-emerald-700 ring-emerald-600/20",
+  cancelled: "bg-ink-100 text-ink-600 ring-ink-500/20",
+  paid: "bg-sky-50 text-sky-700 ring-sky-600/20",
+  settled: "bg-emerald-50 text-emerald-700 ring-emerald-600/20",
+};
+
+export const STATUS_DOT = {
+  pending: "bg-amber-500",
+  approved: "bg-brand-500",
+  rejected: "bg-rose-500",
+  returned: "bg-emerald-500",
+  cancelled: "bg-ink-400",
+  paid: "bg-sky-500",
+  settled: "bg-emerald-500",
 };
 
 export function formatBaht(value) {

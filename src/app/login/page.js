@@ -2,6 +2,35 @@
 
 import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import {
+  IconEye,
+  IconEyeOff,
+  IconLock,
+  IconPackage,
+  IconSpinner,
+  IconUser,
+  IconWallet,
+  IconWarning,
+} from "@/components/Icons";
+
+const DEMO_ACCOUNTS = [
+  { role: "ผู้ดูแลระบบ", username: "admin", password: "admin1234" },
+  { role: "เจ้าหน้าที่", username: "staff", password: "staff1234" },
+  { role: "ผู้ใช้ทั่วไป", username: "user", password: "user1234" },
+];
+
+const FEATURES = [
+  {
+    icon: IconPackage,
+    title: "งานพัสดุ",
+    text: "เบิกจ่ายวัสดุ ยืม-คืนครุภัณฑ์ พร้อมตัดสต๊อกอัตโนมัติ",
+  },
+  {
+    icon: IconWallet,
+    title: "งานการเงิน",
+    text: "เบิกจ่ายเงิน และยืมเงินทดรองพร้อมขั้นตอนล้างหนี้",
+  },
+];
 
 function LoginForm() {
   const router = useRouter();
@@ -25,6 +54,7 @@ function LoginForm() {
       const data = await res.json();
       if (!res.ok) {
         setError(data.message || "เข้าสู่ระบบไม่สำเร็จ");
+        setLoading(false);
         return;
       }
       const next = params.get("next");
@@ -32,102 +62,210 @@ function LoginForm() {
       router.refresh();
     } catch {
       setError("เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ กรุณาลองใหม่อีกครั้ง");
-    } finally {
       setLoading(false);
     }
   }
 
+  function fillDemo(account) {
+    setUsername(account.username);
+    setPassword(account.password);
+    setError("");
+  }
+
   return (
-    <div className="card mis-login-card">
-      <div className="card-body p-4 p-md-5">
-        <div className="text-center mb-4">
-          <div
-            className="d-inline-flex align-items-center justify-content-center rounded-circle mb-3"
-            style={{ width: 64, height: 64, background: "var(--mis-brand)" }}
-          >
-            <span className="fs-3 text-white fw-bold">IT</span>
-          </div>
-          <h1 className="h4 fw-bold mb-1">ระบบ MIS</h1>
-          <p className="text-secondary small mb-0">
-            แผนกวิชาเทคโนโลยีสารสนเทศ
-            <br />
-            วิทยาลัยเทคนิคเชียงใหม่
+    <div className="w-full max-w-[400px] animate-fade-up">
+      <div className="mb-8 text-center lg:hidden">
+        <span className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-950 text-lg font-bold text-white shadow-lift">
+          IT
+        </span>
+        <h1 className="text-xl font-bold text-ink-900">ระบบ MIS</h1>
+        <p className="mt-1 text-sm text-ink-500">
+          แผนกวิชาเทคโนโลยีสารสนเทศ วิทยาลัยเทคนิคเชียงใหม่
+        </p>
+      </div>
+
+      <div className="card p-7 shadow-lift sm:p-8">
+        <div className="mb-7">
+          <h2 className="text-xl font-bold tracking-tight text-ink-900">เข้าสู่ระบบ</h2>
+          <p className="mt-1 text-sm text-ink-500">
+            กรอกชื่อผู้ใช้และรหัสผ่านที่ได้รับจากผู้ดูแลระบบ
           </p>
         </div>
 
         {error ? (
-          <div className="alert alert-danger py-2" role="alert">
-            {error}
+          <div className="mb-5 flex animate-fade-down items-start gap-2.5 rounded-xl border border-rose-200 bg-rose-50 p-3.5 text-sm text-rose-700">
+            <IconWarning className="mt-0.5 h-4 w-4 shrink-0" />
+            <span>{error}</span>
           </div>
         ) : null}
 
-        <form onSubmit={handleSubmit} noValidate>
-          <div className="mb-3">
-            <label className="form-label" htmlFor="username">
+        <form onSubmit={handleSubmit} noValidate className="space-y-5">
+          <div>
+            <label className="label" htmlFor="username">
               ชื่อผู้ใช้
             </label>
-            <input
-              id="username"
-              className="form-control"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              autoComplete="username"
-              autoFocus
-              required
-            />
+            <div className="relative">
+              <IconUser className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-400" />
+              <input
+                id="username"
+                className="input pl-10"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                autoComplete="username"
+                placeholder="เช่น admin"
+                autoFocus
+                required
+              />
+            </div>
           </div>
 
-          <div className="mb-4">
-            <label className="form-label" htmlFor="password">
+          <div>
+            <label className="label" htmlFor="password">
               รหัสผ่าน
             </label>
-            <div className="input-group">
+            <div className="relative">
+              <IconLock className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-400" />
               <input
                 id="password"
                 type={showPassword ? "text" : "password"}
-                className="form-control"
+                className="input pl-10 pr-11"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 autoComplete="current-password"
+                placeholder="••••••••"
                 required
               />
               <button
                 type="button"
-                className="btn btn-outline-secondary"
                 onClick={() => setShowPassword((v) => !v)}
+                aria-label={showPassword ? "ซ่อนรหัสผ่าน" : "แสดงรหัสผ่าน"}
+                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-2 text-ink-400 transition hover:bg-ink-100 hover:text-ink-600"
               >
-                {showPassword ? "ซ่อน" : "แสดง"}
+                {showPassword ? (
+                  <IconEyeOff className="h-4 w-4" />
+                ) : (
+                  <IconEye className="h-4 w-4" />
+                )}
               </button>
             </div>
           </div>
 
-          <button
-            type="submit"
-            className="btn btn-primary w-100 py-2"
-            disabled={loading}
-          >
+          <button type="submit" className="btn-primary w-full py-3" disabled={loading}>
+            {loading ? <IconSpinner /> : null}
             {loading ? "กำลังเข้าสู่ระบบ..." : "เข้าสู่ระบบ"}
           </button>
         </form>
 
-        <hr className="my-4" />
-        <p className="small text-secondary mb-1 fw-semibold">บัญชีตัวอย่าง</p>
-        <ul className="small text-secondary mb-0 ps-3">
-          <li>ผู้ดูแลระบบ: admin / admin1234</li>
-          <li>เจ้าหน้าที่: staff / staff1234</li>
-          <li>ผู้ใช้ทั่วไป: user / user1234</li>
-        </ul>
+        <div className="mt-7 border-t border-ink-100 pt-5">
+          <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-ink-400">
+            บัญชีตัวอย่าง (คลิกเพื่อกรอกอัตโนมัติ)
+          </p>
+          <div className="grid grid-cols-3 gap-2">
+            {DEMO_ACCOUNTS.map((account) => (
+              <button
+                key={account.username}
+                type="button"
+                onClick={() => fillDemo(account)}
+                className="rounded-xl border border-ink-200 px-2 py-2.5 text-center transition duration-200 hover:-translate-y-0.5 hover:border-brand-300 hover:bg-brand-50 hover:shadow-soft"
+              >
+                <span className="block text-xs font-medium text-ink-700">
+                  {account.role}
+                </span>
+                <span className="mt-0.5 block text-[0.7rem] text-ink-400">
+                  {account.username}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
+
+      <p className="mt-6 text-center text-xs text-ink-400">
+        © {new Date().getFullYear() + 543} แผนกวิชาเทคโนโลยีสารสนเทศ วิทยาลัยเทคนิคเชียงใหม่
+      </p>
     </div>
   );
 }
 
 export default function LoginPage() {
   return (
-    <main className="mis-login">
-      <Suspense fallback={<div className="text-white">กำลังโหลด...</div>}>
-        <LoginForm />
-      </Suspense>
+    <main className="flex min-h-screen">
+      {/* ฝั่งซ้าย: แบรนด์ (แสดงบนจอใหญ่) */}
+      <section className="relative hidden w-1/2 overflow-hidden bg-brand-950 lg:flex xl:w-[55%]">
+        <div className="pointer-events-none absolute inset-0">
+          <div className="absolute -left-24 top-0 h-[28rem] w-[28rem] animate-aurora-1 rounded-full bg-brand-500/30 blur-3xl" />
+          <div className="absolute -bottom-24 right-0 h-[26rem] w-[26rem] animate-aurora-2 rounded-full bg-sky-400/20 blur-3xl" />
+          <div
+            className="absolute inset-0 opacity-[0.07]"
+            style={{
+              backgroundImage:
+                "linear-gradient(rgba(255,255,255,0.6) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.6) 1px, transparent 1px)",
+              backgroundSize: "48px 48px",
+            }}
+          />
+        </div>
+
+        <div className="relative z-10 flex w-full flex-col justify-between p-12 xl:p-16">
+          <div className="flex animate-fade-up items-center gap-3">
+            <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/10 text-base font-bold text-white ring-1 ring-inset ring-white/20 backdrop-blur">
+              IT
+            </span>
+            <div>
+              <p className="font-semibold text-white">ระบบ MIS</p>
+              <p className="text-xs text-white/50">Management Information System</p>
+            </div>
+          </div>
+
+          <div className="max-w-md">
+            <h1 className="animate-fade-up text-balance text-4xl font-bold leading-tight text-white stagger-1 xl:text-[2.75rem]">
+              ระบบสารสนเทศเพื่อการจัดการ
+              <span className="mt-2 block bg-gradient-to-r from-brand-200 to-sky-200 bg-clip-text text-transparent">
+                งานพัสดุและงานการเงิน
+              </span>
+            </h1>
+            <p className="mt-5 animate-fade-up text-white/60 stagger-2">
+              แผนกวิชาเทคโนโลยีสารสนเทศ วิทยาลัยเทคนิคเชียงใหม่
+            </p>
+
+            <div className="mt-10 space-y-4">
+              {FEATURES.map((feature, index) => (
+                <div
+                  key={feature.title}
+                  className={`flex animate-fade-up items-start gap-4 rounded-2xl border border-white/10 bg-white/[0.04] p-4 backdrop-blur-sm transition duration-300 hover:border-white/20 hover:bg-white/[0.08] ${
+                    index === 0 ? "stagger-3" : "stagger-4"
+                  }`}
+                >
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/10 text-brand-200">
+                    <feature.icon className="h-5 w-5" />
+                  </span>
+                  <div>
+                    <p className="font-medium text-white">{feature.title}</p>
+                    <p className="mt-0.5 text-sm text-white/50">{feature.text}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <p className="animate-fade-up text-xs text-white/35 stagger-5">
+            ใช้งานภายในสถานศึกษาเท่านั้น
+          </p>
+        </div>
+      </section>
+
+      {/* ฝั่งขวา: ฟอร์มเข้าสู่ระบบ */}
+      <section className="flex flex-1 items-center justify-center bg-ink-50 px-4 py-10 sm:px-8">
+        <Suspense
+          fallback={
+            <div className="flex items-center gap-2 text-ink-400">
+              <IconSpinner className="h-5 w-5" />
+              กำลังโหลด...
+            </div>
+          }
+        >
+          <LoginForm />
+        </Suspense>
+      </section>
     </main>
   );
 }

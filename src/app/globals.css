@@ -1,118 +1,179 @@
-:root {
-  --mis-sidebar-width: 260px;
-  --mis-brand: #0f3d6e;
-  --mis-brand-dark: #0a2c50;
-}
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-html,
-body {
-  font-family: "Noto Sans Thai", "Sarabun", "Leelawadee UI", "Tahoma",
-    system-ui, -apple-system, "Segoe UI", sans-serif;
-  background-color: #f4f6f9;
-}
-
-/* หน้าเข้าสู่ระบบ */
-.mis-login {
-  min-height: 100vh;
-  display: grid;
-  place-items: center;
-  padding: 1.5rem;
-  background: linear-gradient(135deg, var(--mis-brand) 0%, #1c6ea4 100%);
-}
-
-.mis-login-card {
-  width: 100%;
-  max-width: 420px;
-  border: none;
-  border-radius: 1rem;
-  box-shadow: 0 1.5rem 3rem rgba(0, 0, 0, 0.25);
-}
-
-/* โครงหน้าหลังเข้าสู่ระบบ */
-.mis-shell {
-  min-height: 100vh;
-}
-
-.mis-sidebar {
-  width: var(--mis-sidebar-width);
-  background: var(--mis-brand);
-  color: #fff;
-  position: fixed;
-  inset: 0 auto 0 0;
-  z-index: 1040;
-  overflow-y: auto;
-  transform: translateX(-100%);
-  transition: transform 0.2s ease-in-out;
-}
-
-.mis-sidebar.is-open {
-  transform: translateX(0);
-}
-
-.mis-sidebar a {
-  color: rgba(255, 255, 255, 0.82);
-  text-decoration: none;
-  border-radius: 0.5rem;
-  padding: 0.6rem 0.85rem;
-  display: block;
-}
-
-.mis-sidebar a:hover {
-  background: rgba(255, 255, 255, 0.12);
-  color: #fff;
-}
-
-.mis-sidebar a.active {
-  background: rgba(255, 255, 255, 0.2);
-  color: #fff;
-  font-weight: 600;
-}
-
-.mis-backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.4);
-  z-index: 1030;
-}
-
-.mis-content {
-  padding: 1.25rem;
-}
-
-@media (min-width: 992px) {
-  .mis-sidebar {
-    transform: translateX(0);
+@layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
   }
 
-  .mis-content {
-    margin-left: var(--mis-sidebar-width);
-    padding: 1.75rem;
+  body {
+    @apply bg-ink-50 text-ink-900 antialiased;
   }
 
-  .mis-backdrop {
-    display: none;
+  /* แถบเลื่อนให้กลมกลืนกับดีไซน์ */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply rounded-full border-2 border-solid border-transparent bg-ink-300 bg-clip-content;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-ink-400 bg-clip-content;
+  }
+
+  :focus-visible {
+    @apply outline-none ring-2 ring-brand-500/60 ring-offset-2 ring-offset-white;
   }
 }
 
-.mis-stat-card {
-  border: none;
-  border-radius: 0.85rem;
-  box-shadow: 0 0.25rem 0.75rem rgba(15, 61, 110, 0.08);
+@layer components {
+  /* ---------- พื้นผิว ---------- */
+  .card {
+    @apply rounded-2xl border border-ink-200/70 bg-white shadow-soft;
+  }
+
+  .card-hover {
+    @apply transition duration-300 hover:-translate-y-0.5 hover:border-brand-200 hover:shadow-lift;
+  }
+
+  /* ---------- ปุ่ม ---------- */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl px-4 py-2.5
+           text-sm font-medium transition-all duration-200 active:scale-[0.97]
+           disabled:pointer-events-none disabled:opacity-50;
+  }
+
+  .btn-primary {
+    @apply btn bg-gradient-to-b from-brand-500 to-brand-600 text-white shadow-glow
+           hover:from-brand-400 hover:to-brand-500;
+  }
+
+  .btn-ghost {
+    @apply btn border border-ink-200 bg-white text-ink-700 hover:border-ink-300 hover:bg-ink-50;
+  }
+
+  .btn-soft {
+    @apply btn bg-brand-50 text-brand-700 hover:bg-brand-100;
+  }
+
+  .btn-danger {
+    @apply btn bg-rose-50 text-rose-700 hover:bg-rose-100;
+  }
+
+  .btn-sm {
+    @apply rounded-lg px-2.5 py-1.5 text-xs;
+  }
+
+  /* ปุ่มเล็กในตาราง */
+  .btn-chip {
+    @apply inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium
+           transition-all duration-200 active:scale-95 disabled:pointer-events-none disabled:opacity-40;
+  }
+
+  /* ---------- ฟอร์ม ---------- */
+  .label {
+    @apply mb-1.5 block text-sm font-medium text-ink-700;
+  }
+
+  .input {
+    @apply w-full rounded-xl border border-ink-200 bg-white px-3.5 py-2.5 text-sm text-ink-900
+           placeholder:text-ink-400 transition duration-200
+           focus:border-brand-400 focus:outline-none focus:ring-4 focus:ring-brand-500/10
+           disabled:cursor-not-allowed disabled:bg-ink-100 disabled:text-ink-500;
+  }
+
+  .select {
+    @apply input cursor-pointer appearance-none bg-[length:1.1rem] bg-[right_0.75rem_center] bg-no-repeat pr-10;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke-width='2' stroke='%23647694'%3e%3cpath stroke-linecap='round' stroke-linejoin='round' d='m19.5 8.25-7.5 7.5-7.5-7.5'/%3e%3c/svg%3e");
+  }
+
+  /* ---------- ป้ายสถานะ ---------- */
+  .badge {
+    @apply inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1
+           text-xs font-medium ring-1 ring-inset;
+  }
+
+  /* ---------- ตาราง ---------- */
+  .table-wrap {
+    @apply -mx-px overflow-x-auto;
+  }
+
+  .table {
+    @apply w-full border-collapse text-sm;
+  }
+
+  .table thead th {
+    @apply whitespace-nowrap border-b border-ink-200 bg-ink-50/70 px-4 py-3 text-left
+           text-xs font-semibold uppercase tracking-wide text-ink-500 first:rounded-tl-xl last:rounded-tr-xl;
+  }
+
+  .table tbody td {
+    @apply whitespace-nowrap border-b border-ink-100 px-4 py-3.5 align-middle text-ink-700;
+  }
+
+  .table tbody tr {
+    @apply transition-colors duration-150 hover:bg-brand-50/40;
+  }
+
+  /* คอลัมน์ปุ่มดำเนินการ ตรึงไว้ขวาสุดเพื่อให้กดได้เสมอแม้ตารางเลื่อนแนวนอน */
+  .col-sticky {
+    @apply sticky right-0 z-10 bg-white text-right
+           shadow-[-10px_0_12px_-10px_rgba(16,24,40,0.16)]
+           transition-colors duration-150 group-hover:bg-[#f5f8ff];
+  }
+
+  .table thead th.col-sticky {
+    @apply bg-ink-50;
+  }
+
+  /* ---------- เมนูข้าง ---------- */
+  .nav-link {
+    @apply relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium
+           text-white/70 transition-all duration-200 hover:bg-white/10 hover:text-white;
+  }
+
+  .nav-link-active {
+    @apply bg-white/[0.14] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.14)];
+  }
 }
 
-.mis-stat-value {
-  font-size: 1.75rem;
-  font-weight: 700;
-  line-height: 1.2;
+@layer utilities {
+  /* หน่วงเวลาเข้าฉากทีละชิ้น ใช้คู่กับ animate-fade-up */
+  .stagger-1 { animation-delay: 60ms; }
+  .stagger-2 { animation-delay: 120ms; }
+  .stagger-3 { animation-delay: 180ms; }
+  .stagger-4 { animation-delay: 240ms; }
+  .stagger-5 { animation-delay: 300ms; }
+  .stagger-6 { animation-delay: 360ms; }
+
+  .text-balance {
+    text-wrap: balance;
+  }
 }
 
-.mis-card {
-  border: none;
-  border-radius: 0.85rem;
-  box-shadow: 0 0.25rem 0.75rem rgba(15, 61, 110, 0.08);
+/* แถบเวลาถอยหลังของ Toast */
+@keyframes toast-progress {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
 }
 
-.table-nowrap td,
-.table-nowrap th {
-  white-space: nowrap;
+/* ปิดการเคลื่อนไหวให้ผู้ใช้ที่ตั้งค่าลดการเคลื่อนไหว */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

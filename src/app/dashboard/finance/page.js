@@ -1,16 +1,35 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import ActionDialog from "@/components/ActionDialog";
 import Modal from "@/components/Modal";
 import StatCard from "@/components/StatCard";
 import StatusBadge from "@/components/StatusBadge";
+import Toast from "@/components/Toast";
+import {
+  EmptyState,
+  PageHeader,
+  Pill,
+  SearchInput,
+  TableSkeleton,
+} from "@/components/ui";
+import {
+  IconBanknote,
+  IconCheck,
+  IconClock,
+  IconClose,
+  IconPlus,
+  IconReturn,
+  IconSpinner,
+  IconTrendUp,
+  IconWarning,
+} from "@/components/Icons";
 import { api } from "@/lib/client";
 import {
   FINANCE_KIND_LABELS,
   STATUS_LABELS,
   formatBaht,
   formatDate,
-  formatDateTime,
 } from "@/lib/labels";
 
 const EMPTY_FORM = {
@@ -37,12 +56,12 @@ export default function FinancePage() {
   const [statusFilter, setStatusFilter] = useState("");
   const [keyword, setKeyword] = useState("");
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
+  const [toast, setToast] = useState(null);
 
   const [form, setForm] = useState(null);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
+  const [dialog, setDialog] = useState(null);
 
   const isOfficer = me?.role === "admin" || me?.role === "staff";
 
@@ -55,9 +74,8 @@ export default function FinancePage() {
       ]);
       setMe(user);
       setRequests(list);
-      setError("");
     } catch (e) {
-      setError(e.message);
+      setToast({ type: "error", message: e.message });
     } finally {
       setLoading(false);
     }
@@ -77,7 +95,7 @@ export default function FinancePage() {
         body: { ...form, amount: Number(form.amount) },
       });
       setForm(null);
-      setNotice("ส่งคำขอเรียบร้อย รอเจ้าหน้าที่อนุมัติ");
+      setToast({ type: "success", message: "ส่งคำขอเรียบร้อย รอเจ้าหน้าที่อนุมัติ" });
       await load();
     } catch (e) {
       setFormError(e.message);
@@ -86,36 +104,70 @@ export default function FinancePage() {
     }
   }
 
-  async function act(request, action) {
-    const labels = {
-      approve: "อนุมัติ",
-      reject: "ไม่อนุมัติ",
-      pay: "บันทึกการจ่ายเงิน",
-      settle: "ล้างหนี้เงินยืม",
-      cancel: "ยกเลิก",
+  function confirmAction(request, action) {
+    const presets = {
+      approve: {
+        title: "อนุมัติคำขอ",
+        message: `ยืนยันอนุมัติ ${request.code} — ${request.title} จำนวน ${formatBaht(request.amount)}?`,
+        tone: "emerald",
+        confirmLabel: "อนุมัติ",
+        icon: IconCheck,
+      },
+      reject: {
+        title: "ไม่อนุมัติคำขอ",
+        message: `คำขอ ${request.code} จะถูกปิดโดยไม่มีการจ่ายเงิน`,
+        tone: "rose",
+        confirmLabel: "ไม่อนุมัติ",
+        icon: IconClose,
+        input: { label: "เหตุผลที่ไม่อนุมัติ", type: "textarea", required: true },
+      },
+      pay: {
+        title: "บันทึกการจ่ายเงิน",
+        message: `ยืนยันจ่ายเงิน ${formatBaht(request.amount)} สำหรับ ${request.code}?`,
+        tone: "brand",
+        confirmLabel: "บันทึกการจ่ายเงิน",
+        icon: IconBanknote,
+      },
+      settle: {
+        title: "ล้างหนี้เงินยืม",
+        message: `เงินยืมของ ${request.code} จำนวน ${formatBaht(request.amount)} — กรอกยอดที่ใช้จริงเพื่อปิดรายการ`,
+        tone: "brand",
+        confirmLabel: "ล้างหนี้",
+        icon: IconReturn,
+        input: {
+          label: "จำนวนเงินที่ใช้จริง (บาท)",
+          type: "number",
+          min: 0,
+          step: "0.01",
+          defaultValue: String(request.amount),
+          required: true,
+        },
+      },
+      cancel: {
+        title: "ยกเลิกคำขอ",
+        message: `ยืนยันยกเลิกคำขอ ${request.code}?`,
+        tone: "amber",
+        confirmLabel: "ยกเลิกคำขอ",
+      },
     };
-    const body = { action };
 
-    if (action === "reject") {
-      body.note = window.prompt("เหตุผลที่ไม่อนุมัติ") ?? "";
-    } else if (action === "settle") {
-      const input = window.prompt(
-        `จำนวนเงินที่ใช้จริง (เงินยืม ${request.amount} บาท)`,
-        String(request.amount)
-      );
-      if (input === null) return;
-      body.settledAmount = Number(input);
-    } else if (!window.confirm(`ยืนยัน${labels[action]} ${request.code}?`)) {
-      return;
-    }
+    setDialog({
+      ...presets[action],
+      run: async (value) => {
+        const body = { action };
+        if (action === "settle") body.settledAmount = Number(value);
+        else if (action === "reject") body.note = value || "";
+        await api(`/api/finance/requests/${request.id}`, { method: "PATCH", body });
+        return `${presets[action].confirmLabel} ${request.code} เรียบร้อย`;
+      },
+    });
+  }
 
-    try {
-      await api(`/api/finance/requests/${request.id}`, { method: "PATCH", body });
-      setNotice(`${labels[action]} ${request.code} เรียบร้อย`);
-      await load();
-    } catch (e) {
-      setError(e.message);
-    }
+  async function runDialog(value) {
+    const message = await dialog.run(value);
+    setDialog(null);
+    setToast({ type: "success", message });
+    await load();
   }
 
   const today = new Date().toISOString().slice(0, 10);
@@ -125,9 +177,8 @@ export default function FinancePage() {
     return matchStatus && text.includes(keyword.toLowerCase());
   });
 
-  const pendingAmount = requests
-    .filter((r) => r.status === "pending")
-    .reduce((sum, r) => sum + r.amount, 0);
+  const pending = requests.filter((r) => r.status === "pending");
+  const pendingAmount = pending.reduce((sum, r) => sum + r.amount, 0);
   const paidAmount = requests
     .filter((r) => ["paid", "settled"].includes(r.status))
     .reduce((sum, r) => sum + r.amount, 0);
@@ -137,248 +188,270 @@ export default function FinancePage() {
 
   return (
     <>
-      <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
-        <div>
-          <h1 className="h3 fw-bold mb-1">งานการเงิน</h1>
-          <p className="text-secondary mb-0">
-            การเบิกจ่ายเงิน และการยืม-คืนเงินทดรองราชการของแผนกวิชา
-          </p>
-        </div>
+      <Toast {...(toast || {})} onClose={() => setToast(null)} />
+
+      <PageHeader
+        title="งานการเงิน"
+        subtitle="การเบิกจ่ายเงิน และการยืม-คืนเงินทดรองราชการของแผนกวิชา"
+      >
         <button
-          className="btn btn-primary"
+          className="btn-primary"
           onClick={() => {
             setForm(EMPTY_FORM);
             setFormError("");
           }}
         >
-          + สร้างคำขอ
+          <IconPlus className="h-4 w-4" />
+          สร้างคำขอ
         </button>
+      </PageHeader>
+
+      <div className="grid gap-4 sm:grid-cols-3">
+        <StatCard
+          className="animate-fade-up"
+          label="รออนุมัติ"
+          value={pendingAmount}
+          format={formatBaht}
+          hint={`${pending.length} รายการ`}
+          icon={IconClock}
+          tone="amber"
+        />
+        <StatCard
+          className="animate-fade-up stagger-1"
+          label="จ่ายแล้วสะสม"
+          value={paidAmount}
+          format={formatBaht}
+          icon={IconTrendUp}
+          tone="emerald"
+        />
+        <StatCard
+          className="animate-fade-up stagger-2"
+          label="เงินยืมค้างล้างหนี้"
+          value={outstanding}
+          format={formatBaht}
+          icon={IconBanknote}
+          tone={outstanding > 0 ? "rose" : "slate"}
+        />
       </div>
 
-      {error ? (
-        <div className="alert alert-danger alert-dismissible">
-          {error}
-          <button className="btn-close" onClick={() => setError("")} />
-        </div>
-      ) : null}
-      {notice ? (
-        <div className="alert alert-success alert-dismissible">
-          {notice}
-          <button className="btn-close" onClick={() => setNotice("")} />
-        </div>
-      ) : null}
-
-      <div className="row g-3 mb-4">
-        <div className="col-12 col-md-4">
-          <StatCard
-            label="รออนุมัติ"
-            value={formatBaht(pendingAmount)}
-            hint={`${requests.filter((r) => r.status === "pending").length} รายการ`}
-            accent="warning"
+      <div className="card mt-6 animate-fade-up overflow-hidden stagger-3">
+        <div className="grid gap-3 border-b border-ink-100 p-4 sm:grid-cols-[1fr_auto]">
+          <SearchInput
+            value={keyword}
+            onChange={setKeyword}
+            placeholder="ค้นหาเลขที่ / รายการ / หมวดรายจ่าย / ผู้ขอ"
           />
+          <select
+            className="select sm:w-48"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+          >
+            <option value="">ทุกสถานะ</option>
+            {["pending", "approved", "paid", "settled", "rejected", "cancelled"].map((s) => (
+              <option key={s} value={s}>
+                {STATUS_LABELS[s]}
+              </option>
+            ))}
+          </select>
         </div>
-        <div className="col-12 col-md-4">
-          <StatCard label="จ่ายแล้วสะสม" value={formatBaht(paidAmount)} accent="success" />
-        </div>
-        <div className="col-12 col-md-4">
-          <StatCard
-            label="เงินยืมค้างล้างหนี้"
-            value={formatBaht(outstanding)}
-            accent={outstanding > 0 ? "danger" : "secondary"}
+
+        {loading ? (
+          <TableSkeleton cols={6} />
+        ) : visible.length === 0 ? (
+          <EmptyState
+            title="ไม่พบคำขอตามเงื่อนไข"
+            description="ลองปรับคำค้นหรือเปลี่ยนตัวกรองสถานะ แล้วลองอีกครั้ง"
+            icon={IconBanknote}
           />
-        </div>
-      </div>
-
-      <div className="card mis-card">
-        <div className="card-body">
-          <div className="row g-2 mb-3">
-            <div className="col-12 col-md-6">
-              <input
-                className="form-control"
-                placeholder="ค้นหาเลขที่ / รายการ / หมวด / ผู้ขอ"
-                value={keyword}
-                onChange={(e) => setKeyword(e.target.value)}
-              />
-            </div>
-            <div className="col-12 col-md-3">
-              <select
-                className="form-select"
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-              >
-                <option value="">ทุกสถานะ</option>
-                {["pending", "approved", "paid", "settled", "rejected", "cancelled"].map(
-                  (s) => (
-                    <option key={s} value={s}>
-                      {STATUS_LABELS[s]}
-                    </option>
-                  )
-                )}
-              </select>
-            </div>
-          </div>
-
-          {loading ? (
-            <p className="text-secondary mb-0">กำลังโหลดข้อมูล...</p>
-          ) : (
-            <div className="table-responsive">
-              <table className="table table-hover align-middle table-nowrap">
-                <thead className="table-light">
-                  <tr>
-                    <th>เลขที่</th>
-                    <th>ประเภท</th>
-                    <th>รายการ</th>
-                    <th className="text-end">จำนวนเงิน</th>
-                    <th>ผู้ขอ</th>
-                    <th>วันที่ขอ</th>
-                    <th>กำหนดคืน</th>
-                    <th>สถานะ</th>
-                    <th className="text-end">ดำเนินการ</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {visible.length === 0 ? (
-                    <tr>
-                      <td colSpan={9} className="text-center text-secondary py-4">
-                        ไม่พบคำขอตามเงื่อนไข
+        ) : (
+          <div className="table-wrap">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>เลขที่</th>
+                  <th>ประเภท</th>
+                  <th>รายการ</th>
+                  <th className="text-right">จำนวนเงิน</th>
+                  <th>ผู้ขอ</th>
+                  <th>วันที่ขอ</th>
+                  <th>กำหนดคืน</th>
+                  <th>สถานะ</th>
+                  <th className="col-sticky">ดำเนินการ</th>
+                </tr>
+              </thead>
+              <tbody>
+                {visible.map((r) => {
+                  const overdue =
+                    r.kind === "advance" &&
+                    r.status === "paid" &&
+                    r.dueDate &&
+                    r.dueDate < today;
+                  return (
+                    <tr key={r.id} className="group">
+                      <td className="font-medium text-ink-900">{r.code}</td>
+                      <td>
+                        <Pill tone={r.kind === "advance" ? "sky" : "slate"}>
+                          {FINANCE_KIND_LABELS[r.kind]}
+                        </Pill>
+                      </td>
+                      <td>
+                        <p className="font-medium text-ink-800">{r.title}</p>
+                        <p className="text-xs text-ink-400">{r.category}</p>
+                      </td>
+                      <td className="text-right">
+                        <span className="font-semibold tabular-nums text-ink-900">
+                          {formatBaht(r.amount)}
+                        </span>
+                        {r.settledAmount !== null && r.settledAmount !== undefined ? (
+                          <p className="text-xs text-ink-400">
+                            ใช้จริง {formatBaht(r.settledAmount)}
+                          </p>
+                        ) : null}
+                      </td>
+                      <td>
+                          <span
+                            className="block max-w-[150px] truncate"
+                            title={r.requesterName}
+                          >
+                            {r.requesterName}
+                          </span>
+                        </td>
+                      <td className="text-xs text-ink-500">{formatDate(r.requestedAt)}</td>
+                      <td>
+                        {r.dueDate ? (
+                          <span
+                            className={
+                              overdue ? "font-medium text-rose-600" : "text-ink-600"
+                            }
+                          >
+                            {formatDate(r.dueDate)}
+                            {overdue ? (
+                              <span title="เกินกำหนดคืน">
+                                <IconWarning className="ml-1 inline h-3.5 w-3.5 align-[-2px]" />
+                              </span>
+                            ) : null}
+                          </span>
+                        ) : (
+                          "—"
+                        )}
+                      </td>
+                      <td>
+                        <StatusBadge status={r.status} />
+                      </td>
+                      <td className="col-sticky">
+                        <div className="flex justify-end gap-1">
+                          {isOfficer && r.status === "pending" ? (
+                            <>
+                              <button
+                                className="btn-chip text-emerald-700 hover:bg-emerald-50"
+                                onClick={() => confirmAction(r, "approve")}
+                                title="อนุมัติ"
+                                aria-label="อนุมัติ"
+                              >
+                                <IconCheck className="h-4 w-4" />
+                              </button>
+                              <button
+                                className="btn-chip text-rose-600 hover:bg-rose-50"
+                                onClick={() => confirmAction(r, "reject")}
+                                title="ไม่อนุมัติ"
+                                aria-label="ไม่อนุมัติ"
+                              >
+                                <IconClose className="h-4 w-4" />
+                              </button>
+                            </>
+                          ) : null}
+                          {isOfficer && r.status === "approved" ? (
+                            <button
+                              className="btn-chip text-brand-700 hover:bg-brand-50"
+                              onClick={() => confirmAction(r, "pay")}
+                              title="บันทึกการจ่ายเงิน"
+                              aria-label="บันทึกการจ่ายเงิน"
+                            >
+                              <IconBanknote className="h-4 w-4" />
+                            </button>
+                          ) : null}
+                          {isOfficer && r.kind === "advance" && r.status === "paid" ? (
+                            <button
+                              className="btn-chip text-brand-700 hover:bg-brand-50"
+                              onClick={() => confirmAction(r, "settle")}
+                              title="ล้างหนี้เงินยืม"
+                              aria-label="ล้างหนี้เงินยืม"
+                            >
+                              <IconReturn className="h-4 w-4" />
+                            </button>
+                          ) : null}
+                          {!isOfficer && r.status === "pending" ? (
+                            <button
+                              className="btn-chip text-ink-600 hover:bg-ink-100"
+                              onClick={() => confirmAction(r, "cancel")}
+                            >
+                              ยกเลิก
+                            </button>
+                          ) : null}
+                        </div>
                       </td>
                     </tr>
-                  ) : (
-                    visible.map((r) => {
-                      const overdue =
-                        r.kind === "advance" &&
-                        r.status === "paid" &&
-                        r.dueDate &&
-                        r.dueDate < today;
-                      return (
-                        <tr key={r.id}>
-                          <td className="fw-semibold">{r.code}</td>
-                          <td>
-                            <span
-                              className={`badge ${r.kind === "advance" ? "text-bg-info" : "text-bg-light"}`}
-                            >
-                              {FINANCE_KIND_LABELS[r.kind]}
-                            </span>
-                          </td>
-                          <td>
-                            <div>{r.title}</div>
-                            <div className="small text-secondary">{r.category}</div>
-                          </td>
-                          <td className="text-end fw-semibold">
-                            {formatBaht(r.amount)}
-                            {r.settledAmount !== null &&
-                            r.settledAmount !== undefined ? (
-                              <div className="small text-secondary fw-normal">
-                                ใช้จริง {formatBaht(r.settledAmount)}
-                              </div>
-                            ) : null}
-                          </td>
-                          <td>{r.requesterName}</td>
-                          <td className="small text-secondary">
-                            {formatDateTime(r.requestedAt)}
-                          </td>
-                          <td className={overdue ? "text-danger fw-semibold" : ""}>
-                            {r.dueDate ? formatDate(r.dueDate) : "-"}
-                            {overdue ? " (เกินกำหนด)" : ""}
-                          </td>
-                          <td>
-                            <StatusBadge status={r.status} />
-                          </td>
-                          <td className="text-end">
-                            <div className="btn-group btn-group-sm">
-                              {isOfficer && r.status === "pending" ? (
-                                <>
-                                  <button
-                                    className="btn btn-outline-success"
-                                    onClick={() => act(r, "approve")}
-                                  >
-                                    อนุมัติ
-                                  </button>
-                                  <button
-                                    className="btn btn-outline-danger"
-                                    onClick={() => act(r, "reject")}
-                                  >
-                                    ไม่อนุมัติ
-                                  </button>
-                                </>
-                              ) : null}
-                              {isOfficer && r.status === "approved" ? (
-                                <button
-                                  className="btn btn-outline-primary"
-                                  onClick={() => act(r, "pay")}
-                                >
-                                  จ่ายเงิน
-                                </button>
-                              ) : null}
-                              {isOfficer && r.kind === "advance" && r.status === "paid" ? (
-                                <button
-                                  className="btn btn-outline-primary"
-                                  onClick={() => act(r, "settle")}
-                                >
-                                  ล้างหนี้
-                                </button>
-                              ) : null}
-                              {!isOfficer && r.status === "pending" ? (
-                                <button
-                                  className="btn btn-outline-secondary"
-                                  onClick={() => act(r, "cancel")}
-                                >
-                                  ยกเลิก
-                                </button>
-                              ) : null}
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       <Modal
         open={form !== null}
         onClose={() => setForm(null)}
         title="สร้างคำขอทางการเงิน"
+        description="คำขอจะถูกส่งให้เจ้าหน้าที่พิจารณาอนุมัติ"
         footer={
           <>
-            <button className="btn btn-light" onClick={() => setForm(null)}>
+            <button className="btn-ghost" onClick={() => setForm(null)}>
               ยกเลิก
             </button>
-            <button
-              className="btn btn-primary"
-              type="submit"
-              form="finance-form"
-              disabled={saving}
-            >
-              {saving ? "กำลังส่ง..." : "ส่งคำขอ"}
+            <button className="btn-primary" type="submit" form="finance-form" disabled={saving}>
+              {saving ? <IconSpinner /> : null}
+              ส่งคำขอ
             </button>
           </>
         }
       >
         {form ? (
-          <form id="finance-form" onSubmit={submit}>
-            {formError ? <div className="alert alert-danger py-2">{formError}</div> : null}
+          <form id="finance-form" onSubmit={submit} className="space-y-4">
+            {formError ? (
+              <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
+                {formError}
+              </div>
+            ) : null}
 
-            <div className="mb-3">
-              <label className="form-label">ประเภทคำขอ</label>
-              <select
-                className="form-select"
-                value={form.kind}
-                onChange={(e) => setForm({ ...form, kind: e.target.value })}
-              >
-                <option value="reimburse">เบิกจ่าย (ขอเบิกเงินตามรายการ)</option>
-                <option value="advance">ยืมเงิน (เงินทดรอง ต้องล้างหนี้)</option>
-              </select>
+            <div>
+              <label className="label">ประเภทคำขอ</label>
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  { value: "reimburse", title: "เบิกจ่าย", desc: "ขอเบิกเงินตามรายการ" },
+                  { value: "advance", title: "ยืมเงิน", desc: "เงินทดรอง ต้องล้างหนี้" },
+                ].map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => setForm({ ...form, kind: option.value })}
+                    className={`rounded-xl border p-3.5 text-left transition duration-200 ${
+                      form.kind === option.value
+                        ? "border-brand-500 bg-brand-50 ring-2 ring-brand-500/20"
+                        : "border-ink-200 hover:border-ink-300 hover:bg-ink-50"
+                    }`}
+                  >
+                    <p className="text-sm font-semibold text-ink-900">{option.title}</p>
+                    <p className="mt-0.5 text-xs text-ink-500">{option.desc}</p>
+                  </button>
+                ))}
+              </div>
             </div>
 
-            <div className="mb-3">
-              <label className="form-label">รายการที่ขอ</label>
+            <div>
+              <label className="label">รายการที่ขอ</label>
               <input
-                className="form-control"
+                className="input"
                 value={form.title}
                 onChange={(e) => setForm({ ...form, title: e.target.value })}
                 placeholder="เช่น ค่าวัสดุฝึกวิชาเครือข่ายคอมพิวเตอร์"
@@ -386,11 +459,11 @@ export default function FinancePage() {
               />
             </div>
 
-            <div className="row g-3">
-              <div className="col-6">
-                <label className="form-label">หมวดรายจ่าย</label>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label className="label">หมวดรายจ่าย</label>
                 <select
-                  className="form-select"
+                  className="select"
                   value={form.category}
                   onChange={(e) => setForm({ ...form, category: e.target.value })}
                 >
@@ -401,35 +474,39 @@ export default function FinancePage() {
                   ))}
                 </select>
               </div>
-              <div className="col-6">
-                <label className="form-label">จำนวนเงิน (บาท)</label>
+              <div>
+                <label className="label">จำนวนเงิน (บาท)</label>
                 <input
                   type="number"
                   min="0.01"
                   step="0.01"
-                  className="form-control"
+                  className="input"
                   value={form.amount}
                   onChange={(e) => setForm({ ...form, amount: e.target.value })}
+                  placeholder="0.00"
                   required
                 />
               </div>
-              {form.kind === "advance" ? (
-                <div className="col-12">
-                  <label className="form-label">กำหนดคืน / ล้างหนี้</label>
-                  <input
-                    type="date"
-                    className="form-control"
-                    value={form.dueDate}
-                    min={today}
-                    onChange={(e) => setForm({ ...form, dueDate: e.target.value })}
-                    required
-                  />
-                </div>
-              ) : null}
             </div>
+
+            {form.kind === "advance" ? (
+              <div className="animate-fade-in">
+                <label className="label">กำหนดคืน / ล้างหนี้</label>
+                <input
+                  type="date"
+                  className="input"
+                  value={form.dueDate}
+                  min={today}
+                  onChange={(e) => setForm({ ...form, dueDate: e.target.value })}
+                  required
+                />
+              </div>
+            ) : null}
           </form>
         ) : null}
       </Modal>
+
+      <ActionDialog config={dialog} onConfirm={runDialog} onClose={() => setDialog(null)} />
     </>
   );
 }
