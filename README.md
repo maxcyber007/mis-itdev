@@ -49,15 +49,22 @@ npm run build && npm run start   # โหมดใช้งานจริง
 
 ## ฐานข้อมูล
 
-ระบบใช้ **MySQL / MariaDB** โดยจะ **สร้างตารางและใส่ข้อมูลตั้งต้นให้อัตโนมัติ**
-เมื่อเชื่อมต่อครั้งแรก จึงไม่ต้องนำเข้าไฟล์ `.sql` เอง — เพียงเตรียมฐานข้อมูลเปล่าและผู้ใช้ไว้:
+ระบบใช้ **MySQL / MariaDB** โดยจะ **สร้างฐานข้อมูล ตาราง และข้อมูลตั้งต้นให้อัตโนมัติ**
+เมื่อเชื่อมต่อครั้งแรก จึงไม่ต้องนำเข้าไฟล์ `.sql` เองและไม่ต้องสร้างฐานข้อมูลล่วงหน้า
+— ขอแค่มีผู้ใช้ MySQL ที่เชื่อมต่อได้ก็พอ
+
+**ผู้ใช้ที่ใช้เชื่อมต่อต้องมีสิทธิ์ `CREATE`** เพื่อให้สร้างฐานข้อมูล/ตารางเองได้:
 
 ```sql
-CREATE DATABASE mis_cmtc CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 CREATE USER 'mis_user'@'%' IDENTIFIED BY 'รหัสผ่านของคุณ';
 GRANT ALL PRIVILEGES ON mis_cmtc.* TO 'mis_user'@'%';
+GRANT CREATE ON *.* TO 'mis_user'@'%';
 FLUSH PRIVILEGES;
 ```
+
+> ถ้าไม่สะดวกให้สิทธิ์ `CREATE` แบบกว้าง (เช่นนโยบายองค์กรไม่อนุญาต) ให้สร้างฐานข้อมูล
+> เปล่าไว้ล่วงหน้าเอง (`CREATE DATABASE mis_cmtc CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;`)
+> แล้ว `GRANT ALL PRIVILEGES ON mis_cmtc.* TO 'mis_user'@'%';` ก็เพียงพอ — ระบบจะสร้างแค่ตารางต่อจากนั้น
 
 ตารางที่ระบบสร้างให้: `users`, `supply_items`, `supply_requests`, `finance_requests`, `counters`
 
@@ -125,6 +132,17 @@ docker compose -f docker-compose.standalone.yml up -d
 ทั้งสองแบบมี healthcheck ที่เรียก `GET /api/health` — ตอบ `200` เมื่อเชื่อมต่อฐานข้อมูลได้
 และ `503` เมื่อเชื่อมต่อไม่ได้ Portainer จึงแสดงสถานะ healthy/unhealthy ได้ถูกต้อง
 เมื่อฐานข้อมูลกลับมา ระบบจะเชื่อมต่อใหม่เองโดยไม่ต้อง restart container
+
+### แก้ปัญหา "เชื่อมต่อฐานข้อมูลไม่ได้"
+
+เรียก `curl http://<โฮสต์>:<APP_PORT>/api/health` เพื่อดูรหัสข้อผิดพลาดที่ชัดเจน แล้วดูตารางนี้:
+
+| รหัส | สาเหตุที่พบบ่อย |
+| --- | --- |
+| `ECONNREFUSED` / `ETIMEDOUT` | **`DB_HOST` หรือ `DB_PORT` ไม่ถูกต้อง** — สาเหตุที่พบบ่อยที่สุดเวลาต่อระหว่าง container: ใช้พอร์ตที่ map ออกสู่โฮสต์ (เช่น `3308`) แทนที่จะเป็นพอร์ตภายในของ container ฐานข้อมูล (ปกติคือ `3306` เสมอ ไม่ว่าจะ map ออกไปพอร์ตอะไร) และ `mis-app` ต้องอยู่ใน Docker network เดียวกับ MySQL container (ดู `MIS_NETWORK`) |
+| `ENOTFOUND` | หา `DB_HOST` ไม่เจอ — ตรวจชื่อ container ให้ตรง หรือยังไม่ได้อยู่เครือข่ายเดียวกัน |
+| `ER_ACCESS_DENIED_ERROR` / `ER_DBACCESS_DENIED_ERROR` | ชื่อผู้ใช้/รหัสผ่านผิด หรือผู้ใช้ไม่มีสิทธิ์ `CREATE`/`ALL PRIVILEGES` ตามหัวข้อฐานข้อมูลด้านบน |
+| `ER_BAD_DB_ERROR` | สร้างฐานข้อมูลอัตโนมัติไม่สำเร็จ (มักมาคู่กับ access denied) |
 
 ## โครงสร้างโปรเจกต์
 

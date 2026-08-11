@@ -7,26 +7,53 @@ import { hashPassword } from "./auth";
  * สร้างตารางและใส่ข้อมูลตั้งต้นให้อัตโนมัติเมื่อเรียกใช้ครั้งแรก
  */
 
+// ชื่อฐานข้อมูลถูกใส่ตรงใน SQL (identifier ใช้ placeholder ไม่ได้) จึงกรองอักขระ
+// ให้เหลือเฉพาะที่ปลอดภัยก่อนนำไปต่อประโยคคำสั่ง
+const DB_NAME = String(process.env.DB_NAME || "mis_cmtc").replace(/[^a-zA-Z0-9_]/g, "");
+
+function connectionConfig() {
+  return {
+    host: process.env.DB_HOST || "127.0.0.1",
+    port: Number(process.env.DB_PORT || 3306),
+    user: process.env.DB_USER || "root",
+    password: process.env.DB_PASSWORD || "",
+    charset: "utf8mb4_unicode_ci",
+  };
+}
+
 let pool;
 let ready;
 
 function getPool() {
   if (!pool) {
     pool = mysql.createPool({
-      host: process.env.DB_HOST || "127.0.0.1",
-      port: Number(process.env.DB_PORT || 3306),
-      user: process.env.DB_USER || "root",
-      password: process.env.DB_PASSWORD || "",
-      database: process.env.DB_NAME || "mis_cmtc",
+      ...connectionConfig(),
+      database: DB_NAME,
       waitForConnections: true,
       connectionLimit: Number(process.env.DB_POOL_SIZE || 10),
-      charset: "utf8mb4_unicode_ci",
       timezone: "Z",
       dateStrings: ["DATE"],
       enableKeepAlive: true,
     });
   }
   return pool;
+}
+
+/**
+ * สร้างฐานข้อมูลให้อัตโนมัติถ้ายังไม่มี (ต้องเชื่อมต่อโดยไม่ระบุ database ก่อน
+ * เพราะ MySQL จะปฏิเสธการเชื่อมต่อทันทีถ้า database ที่ระบุไว้ยังไม่มีอยู่จริง)
+ * ผู้ใช้ที่เชื่อมต่อต้องมีสิทธิ์ CREATE — ถ้าไม่มี ให้ผู้ดูแลฐานข้อมูลสร้างเองล่วงหน้า
+ */
+async function ensureDatabaseExists() {
+  const connection = await mysql.createConnection(connectionConfig());
+  try {
+    await connection.query(
+      `CREATE DATABASE IF NOT EXISTS \`${DB_NAME}\`
+       CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`
+    );
+  } finally {
+    await connection.end();
+  }
 }
 
 const SCHEMA = [
@@ -148,6 +175,7 @@ async function seed(conn) {
 export function init() {
   if (!ready) {
     ready = (async () => {
+      await ensureDatabaseExists();
       const conn = await getPool().getConnection();
       try {
         for (const statement of SCHEMA) await conn.query(statement);
