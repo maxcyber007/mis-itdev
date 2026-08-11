@@ -24,11 +24,17 @@ function LoginForm() {
     event.preventDefault();
     setError("");
     setLoading(true);
+
+    // กันปุ่มค้างที่ "กำลังเข้าสู่ระบบ..." ไม่มีกำหนด ถ้าเซิร์ฟเวอร์ไม่ตอบกลับเลย
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 20000);
+
     try {
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password }),
+        signal: controller.signal,
       });
       const data = await res.json();
       if (!res.ok) {
@@ -39,9 +45,15 @@ function LoginForm() {
       const next = params.get("next");
       router.replace(next && next.startsWith("/") ? next : "/dashboard");
       router.refresh();
-    } catch {
-      setError("เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ กรุณาลองใหม่อีกครั้ง");
+    } catch (err) {
+      setError(
+        err.name === "AbortError"
+          ? "เชื่อมต่อเซิร์ฟเวอร์นานเกินไป กรุณาลองใหม่อีกครั้ง"
+          : "เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ กรุณาลองใหม่อีกครั้ง"
+      );
       setLoading(false);
+    } finally {
+      clearTimeout(timeoutId);
     }
   }
 

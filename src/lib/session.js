@@ -52,6 +52,18 @@ export function dbError(error) {
     );
   }
 
+  if (error?.code === "DB_TIMEOUT") {
+    return json(
+      {
+        message:
+          "เชื่อมต่อฐานข้อมูลใช้เวลานานเกินไป มักเกิดจาก DB_HOST/DB_PORT ชี้ผิดเครือข่าย " +
+          "(เช่นใช้พอร์ตที่ map ออกโฮสต์แทนพอร์ตภายใน container) หรือ container ฐานข้อมูลกับ " +
+          "แอปไม่ได้อยู่เครือข่าย Docker เดียวกัน กรุณาลองใหม่อีกครั้งหรือติดต่อผู้ดูแลระบบ",
+      },
+      503
+    );
+  }
+
   const noPrivilege = ["ER_DBACCESS_DENIED_ERROR", "ER_ACCESS_DENIED_ERROR"];
   if (noPrivilege.includes(error?.code)) {
     return json(

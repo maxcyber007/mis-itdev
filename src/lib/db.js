@@ -11,6 +11,10 @@ import { hashPassword } from "./auth";
 // ให้เหลือเฉพาะที่ปลอดภัยก่อนนำไปต่อประโยคคำสั่ง
 const DB_NAME = String(process.env.DB_NAME || "mis_cmtc").replace(/[^a-zA-Z0-9_]/g, "");
 
+// เวลาสูงสุดที่ยอมรอฐานข้อมูล ก่อนตัดจบและแจ้ง error แทนการค้างเฉย ๆ
+// (เช่นกรณี network drop แพ็กเก็ตเงียบ ๆ โดยไม่ตอบกลับเลย ซึ่ง TCP อาจรอเป็นนาที)
+const DB_TIMEOUT_MS = Number(process.env.DB_TIMEOUT_MS || 8000);
+
 function connectionConfig() {
   return {
     host: process.env.DB_HOST || "127.0.0.1",
@@ -18,7 +22,21 @@ function connectionConfig() {
     user: process.env.DB_USER || "root",
     password: process.env.DB_PASSWORD || "",
     charset: "utf8mb4_unicode_ci",
+    connectTimeout: DB_TIMEOUT_MS,
   };
+}
+
+/** ตัดจบ promise ที่ค้างนานเกินไป แล้ว reject ด้วย error ที่มี code ระบุชัดเจน */
+function withTimeout(promise, label) {
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => {
+      const error = new Error(`หมดเวลาเชื่อมต่อฐานข้อมูล (${label})`);
+      error.code = "DB_TIMEOUT";
+      reject(error);
+    }, DB_TIMEOUT_MS);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
 }
 
 let pool;
@@ -174,19 +192,22 @@ async function seed(conn) {
 /** สร้างตารางและข้อมูลตั้งต้น (ทำครั้งเดียวต่อการรันหนึ่งโปรเซส) */
 export function init() {
   if (!ready) {
-    ready = (async () => {
-      await ensureDatabaseExists();
-      const conn = await getPool().getConnection();
-      try {
-        for (const statement of SCHEMA) await conn.query(statement);
-        await conn.query(
-          `INSERT IGNORE INTO counters (name, value) VALUES ('supply', 0), ('finance', 0)`
-        );
-        await seed(conn);
-      } finally {
-        conn.release();
-      }
-    })().catch((error) => {
+    ready = withTimeout(
+      (async () => {
+        await ensureDatabaseExists();
+        const conn = await getPool().getConnection();
+        try {
+          for (const statement of SCHEMA) await conn.query(statement);
+          await conn.query(
+            `INSERT IGNORE INTO counters (name, value) VALUES ('supply', 0), ('finance', 0)`
+          );
+          await seed(conn);
+        } finally {
+          conn.release();
+        }
+      })(),
+      "init"
+    ).catch((error) => {
       ready = undefined; // ให้ลองใหม่ได้ในคำขอถัดไป เช่นตอนฐานข้อมูลยังไม่พร้อม
       throw error;
     });
@@ -197,7 +218,7 @@ export function init() {
 /** คิวรีที่คืนแถวข้อมูล */
 export async function query(sql, params = []) {
   await init();
-  const [rows] = await getPool().execute(sql, params);
+  const [rows] = await withTimeout(getPool().execute(sql, params), "query");
   return rows;
 }
 
@@ -210,7 +231,7 @@ export async function queryOne(sql, params = []) {
 /** สั่งเปลี่ยนแปลงข้อมูล คืนผลลัพธ์ของ MySQL */
 export async function execute(sql, params = []) {
   await init();
-  const [result] = await getPool().execute(sql, params);
+  const [result] = await withTimeout(getPool().execute(sql, params), "execute");
   return result;
 }
 
@@ -220,7 +241,7 @@ export async function execute(sql, params = []) {
  */
 export async function transaction(work) {
   await init();
-  const conn = await getPool().getConnection();
+  const conn = await withTimeout(getPool().getConnection(), "getConnection");
   try {
     await conn.beginTransaction();
     const result = await work(conn);
