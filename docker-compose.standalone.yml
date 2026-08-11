@@ -1,0 +1,77 @@
+# ==============================================================================
+# ทางเลือก: รันทั้งแอปและ MySQL พร้อมกันในสแตกเดียว
+# ใช้เมื่อยังไม่มี MySQL container หรือต้องการแยกฐานข้อมูลของระบบ MIS ออกมาต่างหาก
+#
+#   docker compose -f docker-compose.standalone.yml up -d
+#
+# ถ้ามี MySQL container อยู่แล้วให้ใช้ docker-compose.yml แทนไฟล์นี้
+# ==============================================================================
+
+services:
+  mis-db:
+    image: mariadb:11
+    container_name: mis-db
+    restart: unless-stopped
+    environment:
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?ต้องกำหนดรหัสผ่าน root}
+      MARIADB_DATABASE: ${DB_NAME:-mis_cmtc}
+      MARIADB_USER: ${DB_USER:-mis_user}
+      MARIADB_PASSWORD: ${DB_PASSWORD:?ต้องกำหนดรหัสผ่านฐานข้อมูล}
+      TZ: ${TZ:-Asia/Bangkok}
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    volumes:
+      - mis-db-data:/var/lib/mysql
+    networks:
+      - mis-net
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      start_period: 30s
+      retries: 6
+
+  mis-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mis-app
+    restart: unless-stopped
+    depends_on:
+      mis-db:
+        condition: service_healthy
+    environment:
+      DB_HOST: mis-db
+      DB_PORT: 3306
+      DB_USER: ${DB_USER:-mis_user}
+      DB_PASSWORD: ${DB_PASSWORD:?ต้องกำหนดรหัสผ่านฐานข้อมูล}
+      DB_NAME: ${DB_NAME:-mis_cmtc}
+      AUTH_SECRET: ${AUTH_SECRET:?ต้องกำหนดค่าลับสำหรับลงลายเซ็น session}
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-admin1234}
+      SEED_STAFF_PASSWORD: ${SEED_STAFF_PASSWORD:-staff1234}
+      SEED_USER_PASSWORD: ${SEED_USER_PASSWORD:-user1234}
+      TZ: ${TZ:-Asia/Bangkok}
+      NODE_ENV: production
+    ports:
+      - "${APP_PORT:-3000}:3000"
+    networks:
+      - mis-net
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:3000/api/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  mis-db-data:
+
+networks:
+  mis-net:
+    driver: bridge

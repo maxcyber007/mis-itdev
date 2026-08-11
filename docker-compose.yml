@@ -1,0 +1,71 @@
+# ==============================================================================
+# ระบบ MIS แผนกวิชาเทคโนโลยีสารสนเทศ วิทยาลัยเทคนิคเชียงใหม่
+# Stack สำหรับ Portainer — ใช้กับ MySQL container ที่มีอยู่แล้ว
+#
+# วิธีใช้ใน Portainer:
+#   Stacks → Add stack → Repository (ชี้มาที่ repo นี้)
+#   หรือ Web editor แล้ววางไฟล์นี้ จากนั้นกรอกค่าใน Environment variables
+#
+# ตัวแปรที่ต้องกรอก: DB_HOST, DB_USER, DB_PASSWORD, DB_NAME, AUTH_SECRET
+# (ดูรายละเอียดและวิธีเตรียมฐานข้อมูลได้ใน .env.example)
+# ==============================================================================
+
+services:
+  mis-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    # ถ้าใช้อิมเมจที่ build ไว้แล้วจาก registry ให้คอมเมนต์ build: ด้านบน
+    # แล้วเปิดบรรทัดนี้แทน:
+    # image: ${MIS_IMAGE:-mis-cmtc:latest}
+    container_name: mis-app
+    restart: unless-stopped
+
+    environment:
+      # ---- ฐานข้อมูล ----
+      # DB_HOST = ชื่อ container ของ MySQL ที่มีอยู่แล้ว (เมื่ออยู่เครือข่ายเดียวกัน)
+      DB_HOST: ${DB_HOST:-mysql}
+      DB_PORT: ${DB_PORT:-3306}
+      DB_USER: ${DB_USER:-mis_user}
+      DB_PASSWORD: ${DB_PASSWORD:?ต้องกำหนดรหัสผ่านฐานข้อมูล}
+      DB_NAME: ${DB_NAME:-mis_cmtc}
+      DB_POOL_SIZE: ${DB_POOL_SIZE:-10}
+
+      # ---- ความปลอดภัย ----
+      # สร้างด้วย: openssl rand -hex 32
+      AUTH_SECRET: ${AUTH_SECRET:?ต้องกำหนดค่าลับสำหรับลงลายเซ็น session}
+
+      # ---- รหัสผ่านตั้งต้น (ใช้เฉพาะตอนสร้างฐานข้อมูลครั้งแรก) ----
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-admin1234}
+      SEED_STAFF_PASSWORD: ${SEED_STAFF_PASSWORD:-staff1234}
+      SEED_USER_PASSWORD: ${SEED_USER_PASSWORD:-user1234}
+
+      TZ: ${TZ:-Asia/Bangkok}
+      NODE_ENV: production
+
+    ports:
+      - "${APP_PORT:-3000}:3000"
+
+    networks:
+      - mis-net
+
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:3000/api/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  # เครือข่ายเดียวกับ MySQL container ที่มีอยู่แล้ว
+  # ตรวจชื่อเครือข่ายจริงได้ด้วย:  docker inspect <ชื่อ container ของ mysql> -f '{{json .NetworkSettings.Networks}}'
+  # แล้วตั้งค่า MIS_NETWORK ให้ตรงกัน (ค่าเริ่มต้นคือ mysql_default)
+  mis-net:
+    external: true
+    name: ${MIS_NETWORK:-mysql_default}
