@@ -68,4 +68,4 @@ networks:
   # แล้วตั้งค่า MIS_NETWORK ให้ตรงกัน (ค่าเริ่มต้นคือ mysql_default)
   mis-net:
     external: true
-    name: ${MIS_NETWORK:-mysql_default}
+    name: ${MIS_NETWORK:-docker_default}
